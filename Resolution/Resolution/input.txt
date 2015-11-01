@@ -1,0 +1,8 @@
+﻿Kills(Curiosity, Tuna)?
+Dog(d).
+Owns(Jack,d).
+~Dog(y) | ~Owns(x,y) | AnimalLover(x).
+~AnimalLover(a) | ~Animal(b) | ~Kills(a,b).
+Kills(Jack, Tuna) | Kills(Curiosity,Tuna).
+Cat(Tuna).
+~Cat(z) | Animal(z).

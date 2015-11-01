@@ -1,0 +1,6 @@
+C:\Repos\CS4470\Resolution\Resolution\Resolution\bin\Debug\Resolution.exe.config
+C:\Repos\CS4470\Resolution\Resolution\Resolution\bin\Debug\Resolution.exe
+C:\Repos\CS4470\Resolution\Resolution\Resolution\bin\Debug\Resolution.pdb
+C:\Repos\CS4470\Resolution\Resolution\Resolution\obj\Debug\Resolution.exe
+C:\Repos\CS4470\Resolution\Resolution\Resolution\obj\Debug\Resolution.pdb
+C:\Repos\CS4470\Resolution\Resolution\Resolution\obj\Debug\Resolution.csprojResolveAssemblyReference.cache
