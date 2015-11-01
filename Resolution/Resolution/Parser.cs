@@ -111,7 +111,7 @@ namespace Resolution
             return output;
         }
 
-        private static void GetArguments(List<Token> input, List<Argument> arguments)
+        private static void GetArguments(List<Token> input, ICollection<Argument> arguments)
         {
             while (true)
             {
@@ -145,7 +145,7 @@ namespace Resolution
             }
         }
 
-        static private Token TokenPop(List<Token> input)
+        static private Token TokenPop(IList<Token> input)
         {
             var currentToken = input[0];
             input.RemoveAt(0);

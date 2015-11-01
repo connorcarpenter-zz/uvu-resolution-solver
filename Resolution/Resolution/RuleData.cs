@@ -22,20 +22,48 @@ namespace Resolution
             }
         }
 
-        public RuleData Prune()
+        public RuleData Prune(int rulesLength)
         {
             var output = new RuleData();
             PruneAddParents(output.Terms, Terms.Last());
+            foreach(var term in output.Terms)
+                PruneRenumber(output.Terms, term, rulesLength);
             return output;
         }
 
-        private void PruneAddParents(List<Term> terms, Term lastTerm)
+        private static void PruneRenumber(List<Term> terms, Term last, int rulesLength)
         {
-            terms.Insert(0,lastTerm);
-            var parentA = FindTerm(lastTerm.ParentA);
-            var parentB = FindTerm(lastTerm.ParentB);
-            if (parentB != null) PruneAddParents(terms, parentB);
-            if (parentA != null) PruneAddParents(terms, parentA);
+            var oldId = last.Id;
+            var newId = terms.FindIndex(t => t == last)+rulesLength;
+            if (oldId == newId) return;
+            last.Id = newId;
+            foreach (var term in terms.Where(term => term != last))
+            {
+                if(term.Id == newId)
+                    PruneRenumber(terms, term, rulesLength);
+                if (term.ParentA == oldId)
+                    term.ParentA = newId;
+                if (term.ParentB == oldId)
+                    term.ParentB = newId;
+            }
+        }
+
+        private void PruneAddParents(IList<Term> terms, Term lastTerm)
+        {
+            while (true)
+            {
+                if (terms.Contains(lastTerm)) return;
+                terms.Insert(0, lastTerm);
+                var parentA = FindTerm(lastTerm.ParentA);
+                var parentB = FindTerm(lastTerm.ParentB);
+                if (parentB != null) PruneAddParents(terms, parentB);
+                if (parentA != null)
+                {
+                    lastTerm = parentA;
+                    continue;
+                }
+                break;
+            }
         }
 
         private Term FindTerm(int index)
@@ -46,43 +74,41 @@ namespace Resolution
 
     public class SubstitutionMap
     {
-        private Dictionary<Argument, Argument> vars;
+        private readonly Dictionary<Argument, Argument> _vars;
         public bool Failure = false;
         public bool Changed = false;
 
         public SubstitutionMap()
         {
-            vars = new Dictionary<Argument, Argument>();
+            _vars = new Dictionary<Argument, Argument>();
         }
 
         public SubstitutionMap(SubstitutionMap subMap)
         {
-            if (subMap.vars.Count > 0)
+            if (subMap._vars.Count > 0)
             {
-                vars = new Dictionary<Argument, Argument>();
+                _vars = new Dictionary<Argument, Argument>();
                 foreach (var key in subMap.Keys)
                 {
-                    vars.Add(new Argument(key), new Argument(subMap.Get(key)));
+                    _vars.Add(new Argument(key), new Argument(subMap.Get(key)));
                 }
             }
             else
             {
-                vars = new Dictionary<Argument, Argument>();
+                _vars = new Dictionary<Argument, Argument>();
             }
         }
 
-        public IEnumerable<Argument> Keys {
-            get { return vars.Keys; }
-        }
+        public IEnumerable<Argument> Keys => _vars.Keys;
 
         public Argument Get(Argument argument)
         {
-            return (from key in vars.Keys where key.EqualTo(argument) select vars[key]).FirstOrDefault();
+            return (from key in _vars.Keys where key.EqualTo(argument) select _vars[key]).FirstOrDefault();
         }
 
         public bool ContainsKey(Argument argument)
         {
-            return vars.Keys.Any(key => key.EqualTo(argument));
+            return _vars.Keys.Any(key => key.EqualTo(argument));
         }
 
         public void Add(Argument argKey, Argument argValue)
@@ -90,13 +116,13 @@ namespace Resolution
             if(argKey.Type == ArgType.Constant)
                 throw new Exception("Can't substitute a constant for another argument");
             if(!ContainsKey(argKey))
-                vars.Add(new Argument(argKey), new Argument(argValue));
+                _vars.Add(new Argument(argKey), new Argument(argValue));
         }
 
         public bool EqualTo(SubstitutionMap subMap)
         {
             if (Keys.Count() != subMap.Keys.Count()) return false;
-            foreach (var mySubs in vars)
+            foreach (var mySubs in _vars)
             {
                 if (!subMap.ContainsKey(mySubs.Key)) return false;
                 if (!subMap.Get(mySubs.Key).EqualTo(Get(mySubs.Key))) return false;
@@ -156,7 +182,7 @@ namespace Resolution
             if(ParentA != 0 && ParentB != 0)
                 parentString = "" + ParentA + " + " + ParentB + " = ";
             parentString += "" + Id + ". ";
-            var output = new String(' ', 15 - parentString.Length);
+            var output = new string(' ', 15 - parentString.Length);
             output += parentString;
             var addedAtom = false;
             foreach (var atom in Atoms)
@@ -177,29 +203,11 @@ namespace Resolution
 
         private bool EqualTo(Term otherTerm)
         {
-            bool all = true;
-            foreach (var otherAtom in otherTerm.Atoms)
-            {
-                var inOtherAtomList = Atoms.Any(atom => otherAtom.EqualTo(atom));
-                if (!inOtherAtomList)
-                {
-                    all = false;
-                    break;
-                }
-            }
-            bool any = false;
-            foreach (var atom in Atoms)
-            {
-                var inOtherAtomList = otherTerm.Atoms.Any(otherAtom => atom.EqualTo(otherAtom));
-                if (!inOtherAtomList)
-                {
-                    any = true;
-                    break;
-                }
-            }
+            var all = otherTerm.Atoms.Select(otherAtom => Atoms.Any(otherAtom.EqualTo)).All(inOtherAtomList => inOtherAtomList);
+            var any = Atoms.Select(atom => otherTerm.Atoms.Any(atom.EqualTo)).Any(inOtherAtomList => !inOtherAtomList);
             var atomsAreEqual = !any && all;
 
-            var subMapsAreEqual = true;//SubMap.EqualTo(otherTerm.SubMap);
+            var subMapsAreEqual = SubMap.EqualTo(otherTerm.SubMap);
             return atomsAreEqual && subMapsAreEqual;
         }
     }
@@ -277,7 +285,7 @@ namespace Resolution
             return output;
         }
 
-        private static string StringifyArguments(string output, List<Argument> argList)
+        private static string StringifyArguments(string output, IEnumerable<Argument> argList)
         {
             output += "(";
             var addedArg = false;
@@ -325,15 +333,10 @@ namespace Resolution
         {
             if (Type != otherArg.Type) return false;
             if (Name != otherArg.Name) return false;
-            if (Type == ArgType.Function)
-            {
-                if (Arguments.Count != otherArg.Arguments.Count)
-                    return false;
-                for(var i=0;i<Arguments.Count;i++)
-                    if (!Arguments[i].EqualTo(otherArg.Arguments[i]))
-                        return false;
-            }
-            return true;
+            if (Type != ArgType.Function) return true;
+            if (Arguments.Count != otherArg.Arguments.Count)
+                return false;
+            return !Arguments.Where((t, i) => !t.EqualTo(otherArg.Arguments[i])).Any();
         }
 
         public Argument(string name, ArgType type)
@@ -348,11 +351,9 @@ namespace Resolution
             Type = otherArg.Type;
             Name = otherArg.Name;
             Init();
-            if (otherArg.Arguments != null && otherArg.Arguments.Count > 0)
-            {
-                foreach(var arg in otherArg.Arguments)
-                    Arguments.Add(new Argument(arg));
-            }
+            if (otherArg.Arguments == null || otherArg.Arguments.Count <= 0) return;
+            foreach(var arg in otherArg.Arguments)
+                Arguments.Add(new Argument(arg));
         }
 
         protected void Init()

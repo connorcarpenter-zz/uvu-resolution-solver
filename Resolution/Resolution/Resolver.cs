@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 
 namespace Resolution
@@ -16,16 +14,15 @@ namespace Resolution
             Console.WriteLine("Input clauses: ");
             rules.Print();
             Console.WriteLine("\nQuery:\n     " + rules.Goal.Stringify() + "?\n");
-
+            
             var negatedGoal = new Atom(rules.Goal);
             negatedGoal.Truthfulness = !negatedGoal.Truthfulness;
-            var negatedGoalTerm = new Term(negatedGoal);
-            negatedGoalTerm.FromGoal = 0;
-
+            var negatedGoalTerm = new Term(negatedGoal) {FromGoal = 0};
             var newRules = new RuleData();
             newRules.Terms.Add(negatedGoalTerm);
             rules.Terms.Add(negatedGoalTerm);
             negatedGoalTerm.Id = rules.Terms.Count;
+            var initialRulesLength = rules.Terms.Count;
 
             var newTerms = GetInitialNewTerms(rules);
             while (true)
@@ -39,15 +36,15 @@ namespace Resolution
                 var topTerm = newTerms[0];
                 newTerms.Remove(topTerm);
                 newRules.Terms.Add(topTerm);
+                rules.Terms.Add(topTerm);
+                topTerm.Id = rules.Terms.Count;
                 if (topTerm.Atoms[0].IsBool && !topTerm.Atoms[0].Truthfulness)
                 {
                     Console.WriteLine("Result: TRUE.\n\nProof clauses added:");
-                    newRules = newRules.Prune();
+                    newRules = newRules.Prune(initialRulesLength);
                     newRules.Print();
                     break;
                 }
-                rules.Terms.Add(topTerm);
-                topTerm.Id = rules.Terms.Count;
                 var newestTerms = GetNewTerms(topTerm, rules, newTerms);
                 newTerms.AddRange(newestTerms);
             }
@@ -88,9 +85,11 @@ namespace Resolution
 
         private static Term CombineTerms(Term a, Term b)
         {
-            var output = new Term();
-            output.ParentA = a.Id;
-            output.ParentB = b.Id;
+            var output = new Term
+            {
+                ParentA = a.Id,
+                ParentB = b.Id
+            };
             var termA = new Term(a);
             var termB = new Term(b);
 
@@ -119,7 +118,7 @@ namespace Resolution
             return output;
         }
 
-        private static List<Atom> CleanFalses(List<Atom> atoms)
+        private static List<Atom> CleanFalses(IReadOnlyList<Atom> atoms)
         {
             var allFalses = !atoms.Any(atom => !atom.IsBool || (atom.IsBool && atom.Truthfulness));
             return allFalses ?
@@ -150,11 +149,13 @@ namespace Resolution
                     {
                         return GetCombinedAtoms(termA, termB, unifyResult);
                     }
-                    atomToAdd = new Atom();
-                    atomToAdd.Name = "";
-                    atomToAdd.Arguments = null;
-                    atomToAdd.IsBool = true;
-                    atomToAdd.Truthfulness = (atomA.Truthfulness == atomB.Truthfulness);
+                    atomToAdd = new Atom
+                    {
+                        Name = "",
+                        Arguments = null,
+                        IsBool = true,
+                        Truthfulness = (atomA.Truthfulness == atomB.Truthfulness)
+                    };
                     break;
                 }
                 output.Add(atomToAdd);
@@ -174,11 +175,13 @@ namespace Resolution
                     {
                         return GetCombinedAtoms(termB, termA, unifyResult);
                     }
-                    atomToAdd = new Atom();
-                    atomToAdd.Name = "";
-                    atomToAdd.Arguments = null;
-                    atomToAdd.IsBool = true;
-                    atomToAdd.Truthfulness = (atomA.Truthfulness == atomB.Truthfulness);
+                    atomToAdd = new Atom
+                    {
+                        Name = "",
+                        Arguments = null,
+                        IsBool = true,
+                        Truthfulness = (atomA.Truthfulness == atomB.Truthfulness)
+                    };
                     break;
                 }
                 output.Add(atomToAdd);
@@ -222,23 +225,21 @@ namespace Resolution
                 if (argA.EqualTo(argB)) continue;
 
                 disagreement = true;
-                if (argA.Type != ArgType.Constant && argNotInFunc(argA, argB))
+                if (argA.Type != ArgType.Constant && ArgNotInFunc(argA, argB))
                 {
                     subMap.Add(argA, argB);
                     var newOutput = Unify(atomA, atomB, subMap);
                     newOutput.Changed = true;
                     return newOutput;
-                } else if (argB.Type != ArgType.Constant && argNotInFunc(argB, argA))
+                }
+                if (argB.Type != ArgType.Constant && ArgNotInFunc(argB, argA))
                 {
                     subMap.Add(argB, argA);
                     var newOutput = Unify(atomA, atomB, subMap);
                     newOutput.Changed = true;
                     return newOutput;
                 }
-                else
-                {
-                    break;
-                }
+                break;
             }
             if (disagreement)
             {
@@ -247,11 +248,10 @@ namespace Resolution
             return output;
         }
 
-        private static bool argNotInFunc(Argument arg, Argument func)
+        private static bool ArgNotInFunc(Argument arg, Argument func)
         {
             if (arg.Type != ArgType.Variable) return true;
-            if (func.Type != ArgType.Function) return true;
-            return func.Arguments.All(subArg => !subArg.EqualTo(arg));
+            return func.Type != ArgType.Function || func.Arguments.All(subArg => !subArg.EqualTo(arg));
         }
 
         private static SubstitutionMap UnifySubMap(SubstitutionMap subMapA, SubstitutionMap subMapB)
