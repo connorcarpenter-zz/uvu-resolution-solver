@@ -94,7 +94,7 @@ namespace Resolution
             var termB = new Term(b);
 
             //unify submaps of each term
-            output.SubMap = UnifySubMap(termA.SubMap, termB.SubMap);
+            output.SubMap = new SubstitutionMap();//UnifySubMap(termA.SubMap, termB.SubMap);
             if (output.SubMap.Failure)
                 return output;
 
@@ -225,14 +225,14 @@ namespace Resolution
                 if (argA.EqualTo(argB)) continue;
 
                 disagreement = true;
-                if (argA.Type != ArgType.Constant && ArgNotInFunc(argA, argB))
+                if (argA.CanMapTo(argB))
                 {
                     subMap.Add(argA, argB);
                     var newOutput = Unify(atomA, atomB, subMap);
                     newOutput.Changed = true;
                     return newOutput;
                 }
-                if (argB.Type != ArgType.Constant && ArgNotInFunc(argB, argA))
+                if (argB.CanMapTo(argA))
                 {
                     subMap.Add(argB, argA);
                     var newOutput = Unify(atomA, atomB, subMap);

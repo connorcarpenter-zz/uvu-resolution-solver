@@ -207,7 +207,7 @@ namespace Resolution
             var any = Atoms.Select(atom => otherTerm.Atoms.Any(atom.EqualTo)).Any(inOtherAtomList => !inOtherAtomList);
             var atomsAreEqual = !any && all;
 
-            var subMapsAreEqual = SubMap.EqualTo(otherTerm.SubMap);
+            var subMapsAreEqual = true;//SubMap.EqualTo(otherTerm.SubMap);
             return atomsAreEqual && subMapsAreEqual;
         }
     }
@@ -360,6 +360,36 @@ namespace Resolution
         {
             if(Type == ArgType.Function)
                 Arguments = new List<Argument>();
+        }
+
+        public bool CanMapTo(Argument otherArg)
+        {
+            if (Type == ArgType.Constant) return false;
+            if (Type == ArgType.Variable) return true;
+            if (Type == ArgType.Function)
+            {
+                if (otherArg.Type != ArgType.Function) return false;
+                if (Arguments.Count != otherArg.Arguments.Count) return false;
+                for (var i = 0; i < Arguments.Count; i++)
+                {
+                    var argA = Arguments[i];
+                    var argB = otherArg.Arguments[i];
+                    if (argA.Type == ArgType.Function || argB.Type == ArgType.Function) return false;
+                    if (argA.Type == ArgType.Constant && argB.Type == ArgType.Constant)
+                    {
+                        if (!argA.EqualTo(argB))
+                            return false;
+                        continue;
+                    }
+                    if (argA.Type == ArgType.Variable)
+                    {
+                        if (argB.Type == ArgType.Variable && argA.EqualTo(argB))
+                            return false;
+                    }
+                }
+            }
+
+            return true;
         }
     }
 }

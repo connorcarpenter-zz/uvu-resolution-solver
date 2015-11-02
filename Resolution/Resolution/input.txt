@@ -1,8 +1,9 @@
-﻿Kills(Curiosity, Tuna)?
-Dog(d).
-Owns(Jack,d).
-~Dog(y) | ~Owns(x,y) | AnimalLover(x).
-~AnimalLover(a) | ~Animal(b) | ~Kills(a,b).
-Kills(Jack, Tuna) | Kills(Curiosity,Tuna).
+﻿Kills(Curiosity,Tuna)?
+
+Animal(F(x)) | Loves(G(x),x).
+~Loves(x,F(x)) | Loves(G(x),x).
+~Animal(z) | ~Kills(x,z) | ~Loves(y,x).
+~Animal(x) | Loves(Jack,x).
+Kills(Jack,Tuna) | Kills(Curiosity, Tuna).
 Cat(Tuna).
-~Cat(z) | Animal(z).
+~Cat(x) | Animal(x).

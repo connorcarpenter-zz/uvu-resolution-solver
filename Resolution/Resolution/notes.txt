@@ -1,0 +1,4 @@
+﻿x        -> Const, x, F(x), F(const)
+Const    -> Const
+F(x)     -> F(y), F(const)
+F(Const) -> F(Const)
