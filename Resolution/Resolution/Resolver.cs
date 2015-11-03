@@ -59,7 +59,9 @@ namespace Resolution
                 for (var j = i + 1; j < rules.Terms.Count; j++)
                 {
                     var combinedTerm = CombineTerms(rules.Terms[i], rules.Terms[j]);
-                    if(!combinedTerm.SubMap.Failure && !combinedTerm.ExistsInList(rules.Terms))
+                    if(!combinedTerm.SubMap.Failure &&
+                       !combinedTerm.ExistsInList(rules.Terms) &&
+                       !combinedTerm.ExistsInList(output))
                         output.Add(combinedTerm);
                 }
             }
@@ -246,12 +248,6 @@ namespace Resolution
                 output.Failure = true;
             }
             return output;
-        }
-
-        private static bool ArgNotInFunc(Argument arg, Argument func)
-        {
-            if (arg.Type != ArgType.Variable) return true;
-            return func.Type != ArgType.Function || func.Arguments.All(subArg => !subArg.EqualTo(arg));
         }
 
         private static SubstitutionMap UnifySubMap(SubstitutionMap subMapA, SubstitutionMap subMapB)

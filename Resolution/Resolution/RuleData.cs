@@ -24,11 +24,24 @@ namespace Resolution
 
         public RuleData Prune(int rulesLength)
         {
+            var indexComparer = new IndexComparer();
             var output = new RuleData();
             PruneAddParents(output.Terms, Terms.Last());
-            foreach(var term in output.Terms)
+            output.Terms.Sort(indexComparer);
+            for (var index = output.Terms.Count-1; index >= 0; index--)
+            {
+                var term = output.Terms[index];
                 PruneRenumber(output.Terms, term, rulesLength);
+            }
             return output;
+        }
+
+        class IndexComparer : IComparer<Term>
+        {
+            public int Compare(Term x, Term y)
+            {
+                return x.Id - y.Id;
+            }
         }
 
         private static void PruneRenumber(List<Term> terms, Term last, int rulesLength)
@@ -50,20 +63,12 @@ namespace Resolution
 
         private void PruneAddParents(IList<Term> terms, Term lastTerm)
         {
-            while (true)
-            {
                 if (terms.Contains(lastTerm)) return;
                 terms.Insert(0, lastTerm);
                 var parentA = FindTerm(lastTerm.ParentA);
                 var parentB = FindTerm(lastTerm.ParentB);
                 if (parentB != null) PruneAddParents(terms, parentB);
-                if (parentA != null)
-                {
-                    lastTerm = parentA;
-                    continue;
-                }
-                break;
-            }
+                if (parentA != null) PruneAddParents(terms, parentA);
         }
 
         private Term FindTerm(int index)
@@ -129,6 +134,22 @@ namespace Resolution
             }
             return true;
         }
+
+        public string Stringify()
+        {
+            var output = "";
+            var addedValue = false;
+            foreach (var v in _vars)
+            {
+                if (addedValue)
+                    output += ", ";
+                addedValue = true;
+                output += v.Key.Stringify();
+                output += " = ";
+                output += v.Value.Stringify();
+            }
+            return output;
+        }
     }
 
     public class Term
@@ -193,6 +214,11 @@ namespace Resolution
                 output += atom.Stringify();
             }
             output += ".";
+            if (SubMap.Keys.Any())
+            {
+                output += " ";
+                output += "{ " + SubMap.Stringify() + " }";
+            }
             return output;
         }
 
@@ -255,6 +281,8 @@ namespace Resolution
                             var otherArg = subMap.Get(arg);
                             arg.Name = otherArg.Name;
                             arg.Type = otherArg.Type;
+                            if(otherArg.Arguments != null && otherArg.Arguments.Count>0)
+                                arg.Arguments = new List<Argument>(otherArg.Arguments);
                         }
                         continue;
                     case ArgType.Function:
@@ -263,7 +291,7 @@ namespace Resolution
                             var otherArg = new Argument(subMap.Get(arg));
                             arg.Name = otherArg.Name;
                             arg.Type = otherArg.Type;
-                            arg.Arguments = otherArg.Arguments;
+                            arg.Arguments = new List<Argument>(otherArg.Arguments);
                         }
                         else
                             InnerLoop(arg.Arguments, subMap);
@@ -365,18 +393,27 @@ namespace Resolution
         public bool CanMapTo(Argument otherArg)
         {
             if (Type == ArgType.Constant) return false;
-            if (Type == ArgType.Variable) return true;
+            if (Type == ArgType.Variable)
+            {
+                var ArgInFunc = (otherArg.Type == ArgType.Function &&
+                otherArg.Arguments.Any(subArg => subArg.EqualTo(this)));
+                if (ArgInFunc) return false;
+                return true;
+            }
             if (Type == ArgType.Function)
             {
                 if (otherArg.Type != ArgType.Function) return false;
+                if (otherArg.Name != Name) return false;
                 if (Arguments.Count != otherArg.Arguments.Count) return false;
                 for (var i = 0; i < Arguments.Count; i++)
                 {
                     var argA = Arguments[i];
                     var argB = otherArg.Arguments[i];
                     if (argA.Type == ArgType.Function || argB.Type == ArgType.Function) return false;
-                    if (argA.Type == ArgType.Constant && argB.Type == ArgType.Constant)
+                    if (argA.Type == ArgType.Constant)
                     {
+                        if (argB.Type != ArgType.Constant)
+                            return false;
                         if (!argA.EqualTo(argB))
                             return false;
                         continue;
@@ -390,6 +427,27 @@ namespace Resolution
             }
 
             return true;
+        }
+
+        public string Stringify()
+        {
+            if(Type != ArgType.Function)
+                return Name;
+            var output = Name;
+            if (Arguments.Count > 0)
+            {
+                output += "(";
+                var addedArg = false;
+                foreach (var a in Arguments)
+                {
+                    if (addedArg)
+                        output += ", ";
+                    addedArg = true;
+                    output += a.Stringify();
+                }
+                output += ")";
+            }
+            return output;
         }
     }
 }
