@@ -203,7 +203,7 @@ namespace Resolution
             if(ParentA != 0 && ParentB != 0)
                 parentString = "" + ParentA + " + " + ParentB + " = ";
             parentString += "" + Id + ". ";
-            var output = new string(' ', 15 - parentString.Length);
+            var output = new string(' ', Math.Max(0,15 - parentString.Length));
             output += parentString;
             var addedAtom = false;
             foreach (var atom in Atoms)
@@ -216,8 +216,11 @@ namespace Resolution
             output += ".";
             if (SubMap.Keys.Any())
             {
-                output += " ";
-                output += "{ " + SubMap.Stringify() + " }";
+                var subOutput = "";
+                subOutput += " ";
+                subOutput += "{ " + SubMap.Stringify() + " }";
+                var spaces = new string(' ', Math.Max(0,60 - output.Length));
+                output += spaces + subOutput;
             }
             return output;
         }
